@@ -1,19 +1,25 @@
-import { Server } from "bun"
-const QS = require('fast-querystring')
-import { BunziResponseStatuses, BunzEngineRoutes, BunzEngineRoute, BunziParams, BunzRequest } from '../types'
-import { BunziResponse } from './BunziResponse'
+import { Server } from "bun";
+import QS from 'fast-querystring';
+import { BunziResponseStatuses, BunzEngineRoutes, BunzEngineRoute, BunziParams, BunzRequest } from '../types';
+import { BunziResponse } from './BunziResponse';
 import { readdir } from "fs/promises";
 import Handlebars from "handlebars";
+import { BunziiError } from "./BunziiError";
 
 type BunziiTemplateEngine = {
     name: string,
     allowedPartiars: string[]
 }
 
-class Bunzii {
+class TrieNode {
+    children: Map<string, TrieNode> = new Map();
+    handler: { method: string, handler: Function } | null = null;
+}
+
+export default class Bunzii {
     public static statuses: BunziResponseStatuses = {};
-    private server: Server | undefined
-    private routes: BunzEngineRoutes = {}
+    private server: Server | undefined;
+    private root: TrieNode = new TrieNode();
     private headers: Headers = new Headers();
     private engine: BunziiTemplateEngine = { name: 'static-html', allowedPartiars: [] };
 
@@ -35,84 +41,105 @@ class Bunzii {
                 })
             })
         }
-        return this
-    };
-
-
-    public route(method: string, path: string, handler: Function) {
-        this.routes[path] = { method, path, handler, params: {} }
-        console.log(`💥 ${method} ${path}`)
         return this;
-    }
-    public get = (path: string, handler: Function) => this.route('GET', path, handler);
-    public post = (path: string, handler: Function) => this.route('POST', path, handler);
-    public put = (path: string, handler: Function) => this.route('PUT', path, handler);
-    public patch = (path: string, handler: Function) => this.route('PATCH', path, handler);
-    public delete = (path: string, handler: Function) => this.route('DELETE', path, handler);
+    };
+    private addToTrie(path: string, method: string, handler: Function) {
+        let node = this.root;
+        const pathSegments = path.split('/').filter(Boolean);
 
-    private routeCache: Record<string, BunzEngineRoute | null> = {};
+        for (const segment of pathSegments) {
+            if (!node.children.has(segment)) {
+                node.children.set(segment, new TrieNode());
+            }
+            node = node.children.get(segment)!;
+        }
+        node.handler = { method, handler };
+    }
+
+
+
+
     private findRoute(path: string): BunzEngineRoute | null {
-        // Ujistěte se, že cesta začíná znakem '/'
         if (!path.startsWith('/')) {
             path = '/' + path;
         }
 
-        let route = this.routes[path];
+        let node = this.root;
+        const pathSegments = path.split('/').filter(Boolean);
+        const params: BunziParams = {};
 
-        if (route) {
-            this.routeCache[path] = route;
-            return route;
+        for (const segment of pathSegments) {
+            let value = node.children.keys().next().value;
+            let seg = value?.startsWith(':') ? value : segment;
+            if (value?.startsWith(':')) params[value.slice(1)] = segment;
+
+            if (!node || !node.children.has(seg)) {
+                return null;
+            } else {
+                node = node.children.get(seg)!;
+            }
         }
 
-        let routes = Object.keys(this.routes);
-        let spPath = path.split("/").filter(Boolean);
-        let spRoutes = routes.map(r => r.split("/").filter(Boolean));
-        spRoutes = spRoutes.filter(r => r.length === spPath.length);
-        let foundRoutePath = spRoutes.find(r => r.every((rp, i) => rp.startsWith(":") || rp === spPath[i]));
-
-        if (foundRoutePath) {
-            let foundRoute: BunzEngineRoute = this.routes[`/${foundRoutePath.join("/")}`];
-
-            if (foundRoute) {
-                let params: BunziParams = {};
-
-                foundRoutePath.forEach((rp, i) => {
-                    if (rp.startsWith(":")) {
-                        params[rp.slice(1)] = spPath[i];
-                    }
-                });
-
-                // Kontrola existence foundRoute před přístupem k params
-                if (foundRoute) {
-                    foundRoute.params = params;
-                }
-                this.routeCache[path] = foundRoute;
-                return foundRoute;
-            }
+        if (node?.handler) {
+            return {
+                method: node.handler.method,
+                path: path,
+                handler: node.handler.handler,
+                params: Object.keys(params).length > 0 ? params : {},
+            };
         }
 
         return null;
     }
+
+
+    public route(method: string, path: string, handler: Function) {
+        this.addToTrie(path, method, handler);
+        console.log(`💥 ${method} ${path}`);
+        return this;
+    }
+
+    public get(path: string, handler: Function) {
+        return this.route('GET', path, handler);
+    }
+
+    public post(path: string, handler: Function) {
+        return this.route('POST', path, handler);
+    }
+
+    public put(path: string, handler: Function) {
+        return this.route('PUT', path, handler);
+    }
+
+    public patch(path: string, handler: Function) {
+        return this.route('PATCH', path, handler);
+    }
+
+    public delete(path: string, handler: Function) {
+        return this.route('DELETE', path, handler);
+    }
+
+    private async handleRequest(request: BunzRequest): Promise<Response | undefined> {
+        let requestURL = new URL(request.url);
+        let requestPath = requestURL.pathname;
+        let route = this.findRoute(requestPath);
+        if (!route) return BunziiError.throw('Page not found', null, 404);
+        if (route && route.method === request.method) {
+            request.params = route.params;
+            request.query = QS.parse(request.url.split('?')[1] || '');
+            let response = route.handler(request, new BunziResponse({ headers: this.headers, template_engine: this.engine }));
+            return response;
+        }
+    }
+
     public listen(port: number) {
         this.server = Bun.serve({
             port,
             fetch: async (request: BunzRequest) => {
-                const requestURL = new URL(request.url);
-                const requestPath = requestURL.pathname;
-                const route = this.routes[requestPath] || await this.findRoute(requestPath);
-
-                if (!route) return new Response('Not Found', { status: 404, headers: this.headers });
-
-                if (route && route.method === request.method) {
-                    request = request;
-                    request.params = route.params;
-                    request.query = QS.parse(request.url.split('?')[1])
-                    const response = route.handler(request, new BunziResponse({ headers: this.headers, template_engine: this.engine }));
-                    return response;
-                }
-            },
-        });
-        console.log('💡 Bunzii listening on port ' + port)
+                const rsp = await this.handleRequest(request);
+                if (rsp) return rsp;
+                return new Response('Router error', { status: 502 });
+            }
+        })
     }
 }
-export default new Bunzii();

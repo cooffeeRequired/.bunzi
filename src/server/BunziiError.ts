@@ -5,8 +5,57 @@ export class BunziiError extends Response {
         super(message, { status, headers: { "Content-Type": "text/html" } });
     }
 
-    static async throw(message: string, stack: any, status: number) {
-        const trace = hljs.highlight(stack, { language: 'php' }).value;
+    static async throw(message: string | null, stack: any, status: number) {
+
+        let body;
+        let trace;
+        switch (status) {
+            case 500: {
+                trace = hljs.highlight(stack, { language: 'php' }).value;
+                body = `
+                <body>
+                <div class="error-container">
+                    <div class="error-icon">❌</div>
+                    <div class="error-message">Error (${status})</div>
+                    <div class="error-description">An error occurred while processing the request.</div>
+                    <div class="error-description">${message}</div>
+                    <div class="error-action">
+                        <a href="#" id="show-stack-trace">Show Stack Trace</a>
+                        <div class="stack-trace" id="stack-trace">${trace}</div>
+                    </div>
+                </div>
+                <script>
+                    const showStackTraceLink = document.getElementById("show-stack-trace");
+                    const stackTraceCode = document.getElementById("stack-trace");
+                    showStackTraceLink.addEventListener("click", function() {
+                        if (stackTraceCode.style.display === "block") {
+                            stackTraceCode.style.display = "none";
+                            showStackTraceLink.innerHTML = "Show Stack Trace";
+                        } else {
+                            stackTraceCode.style.display = "block";
+                            showStackTraceLink.innerHTML = "Hide Stack Trace";
+                        }
+                    });
+                </script>
+            </body>`
+                break;
+            }
+            default: {
+                body = `
+                <body>
+                <div class="error-container">
+                    <div class="error-icon">❌</div>
+                    <div class="error-message">Error (${status})</div>
+                    <div class="error-description">${message}</div>
+                    <div class="error-action">
+                        <a href="/">Go back to home</a>
+                    </div>
+                </div>
+            </body>
+                `
+            }
+        }
+
 
         const text = `
         <!DOCTYPE html>
@@ -76,31 +125,7 @@ export class BunziiError extends Response {
                 }
             </style>
         </head>
-        <body>
-            <div class="error-container">
-                <div class="error-icon">❌</div>
-                <div class="error-message">Error (${status})</div>
-                <div class="error-description">An error occurred while processing the request.</div>
-                <div class="error-description">${message}</div>
-                <div class="error-action">
-                    <a href="#" id="show-stack-trace">Show Stack Trace</a>
-                    <div class="stack-trace" id="stack-trace">${trace}</div>
-                </div>
-            </div>
-            <script>
-                const showStackTraceLink = document.getElementById("show-stack-trace");
-                const stackTraceCode = document.getElementById("stack-trace");
-                showStackTraceLink.addEventListener("click", function() {
-                    if (stackTraceCode.style.display === "block") {
-                        stackTraceCode.style.display = "none";
-                        showStackTraceLink.innerHTML = "Show Stack Trace";
-                    } else {
-                        stackTraceCode.style.display = "block";
-                        showStackTraceLink.innerHTML = "Hide Stack Trace";
-                    }
-                });
-            </script>
-        </body>
+        ${body}
         </html>
         `
         return new BunziiError(text, status);
