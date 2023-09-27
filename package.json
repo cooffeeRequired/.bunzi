@@ -2,12 +2,12 @@
   "name": "bunzii",
   "module": "src/index.ts",
   "type": "module",
-  "version": "0.0.36-beta",
+  "version": "0.0.40-beta",
   "author": {
     "name": "coffeeRequired",
     "email": "nextikczcz@gmai.com"
   },
-  "types": "./src/types.d.ts",
+  "types": "./src/types/index.d.ts",
   "description": "A simple and fast web framework for Bun.js",
   "scripts": {
     "start": "bun --hot index.ts",
@@ -23,7 +23,8 @@
     "fast-querystring": "^1.1.2",
     "fp-ts": "^2.16.1",
     "handlebars": "^4.7.8",
-    "highlight.js": "^11.8.0"
+    "highlight.js": "^11.8.0",
+    "trie-map": "^0.0.2"
   },
   "files": [
     "src/*",
