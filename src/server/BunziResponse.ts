@@ -1,6 +1,6 @@
 import { file, Server } from "bun";
 import Handlebars from "handlebars";
-import { BunziiError } from './BunziiError.ts'
+import { BunziiError } from './BunziiError'
 
 export class BunziResponse {
     private statusCode: number = 404;

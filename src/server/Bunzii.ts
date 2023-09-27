@@ -1,10 +1,9 @@
 import { Server } from "bun"
 const QS = require('fast-querystring')
-import { BunziResponseStatuses, BunzEngineRoutes, BunzEngineRoute, BunziParams, BunzRequest } from './types.js'
-import { BunziResponse } from './BunziResponse.ts'
+import { BunziResponseStatuses, BunzEngineRoutes, BunzEngineRoute, BunziParams, BunzRequest } from '../types'
+import { BunziResponse } from './BunziResponse'
 import { readdir } from "fs/promises";
 import Handlebars from "handlebars";
-import { read } from "fs";
 
 type BunziiTemplateEngine = {
     name: string,

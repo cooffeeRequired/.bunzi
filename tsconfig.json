@@ -3,6 +3,9 @@
     "lib": [
       "ESNext"
     ],
+    "rootDirs": [
+      "./src",
+    ],
     "module": "esnext",
     "target": "esnext",
     "moduleResolution": "bundler",
