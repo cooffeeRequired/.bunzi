@@ -1,108 +1,35 @@
 
 /// <reference types="bun-types" />
-export declare class Bunzii {
-    private routes;
-    private routeCache;
-    private server;
-    private headers;
-    private engine;
-    constructor();
-    private findRoute;
-    get(path: string, handler: Function): void;
-    post(path: string, handler: Function): void;
-    put(path: string, handler: Function): void;
-    patch(path: string, handler: Function): void;
-    delete(path: string, handler: Function): void;
-    redirect(path: string): void;
-    listen(port: number): void;
-    setTitle(title: string): void;
-    setExt(ext: string): void;
+export interface BunziiHeaders extends Map<string, string> { }
+
+export type BunziiPlugins = {
+    [key: string]: any
 }
 
-export declare class BunziResponse {
-    private statusCode;
-    private headers;
-    private engine;
-    private engine_partiar;
-    constructor(options: {
-        headers: Headers;
-        template_engine: {
-            name: string;
-            allowedPartiars: string[];
-        };
-    });
-    status(code: number): BunziResponse;
-    send(str: any): Response;
-    json(obj: any): Response | Error;
-    sendFile(path: string): Response | Error;
-    render(data: any, input: any, opt?: any): Promise<Response | Error>;
+export interface BunziiFunction extends Function {
+    (req: BunziiRequest, res: BunziiResponse): void | Response | Promise<Response>;
 }
 
-export type BunziRenderOptions = {
-    title: string;
-}
-
-export type BunziParams = {
+export type BunziiParams = {
     [key: string]: {}
 }
 
-export interface IBunziResponse {
-    send(str: any): Response;
-    json(obj: any): Response | Error;
-    sendFile(path: string): Response | Error;
-    render(data: any, input: any): Promise<Response | Error>;
-}
-
-export interface BunziEngine {
-    name: string;
-    allowedPartiars: string[];
-}
-
-export type BunziiTemplateEngine = {
-    name: string,
-    allowedPartiars: string[],
-    layout: string,
-    opt: {
-        title: string,
-        description: string,
-        keywords: string,
-        staticDir: string,
-        ext: string
-    }
-}
-
-export declare class BunziiError {
-    name: string;
-    message: string;
-    stack: string;
-}
-
-export type BunziContent = {
+export type BunziiContent = {
     [key: string]: {}
 } | string | Blob | ArrayBuffer | FormData | ReadableStream<Uint8Array> | null | undefined
 
-export interface BunzRequest extends Request {
-    params: BunziParams,
-    content: BunziContent | any,
+export interface BunziiRequest extends Request {
+    params: BunziiParams,
+    content: BunziiContent | any,
     query: any;
+    parsedURL: URLWrapper;
 }
 
-export type BunzEngineRoute = {
-    method: string,
-    path: string,
-    handler: Function,
-    params: BunziParams
-} | null
-
-export type BunzEngineRoutes = {
-    [key: string]: BunzEngineRoute
+export type BunziiConfig = {
+    plugins: {},
+    static: {
+        dir: string,
+        allowed: boolean
+    },
+    server: Server
 }
-
-export type BunziResponseStatuses = {
-    [key: string]: {
-        short: string,
-        long: string
-    }
-}
-
-export default Bunzii;

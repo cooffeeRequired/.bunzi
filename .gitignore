@@ -57,6 +57,8 @@ jspm_packages/
 benchmark/
 bun.lockb
 test.ts
+pages/
+public/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 

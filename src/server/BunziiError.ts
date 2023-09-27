@@ -1,17 +1,12 @@
-import hljs from 'highlight.js';
-
-export class BunziiError extends Response {
+export default class BunziiError extends Response {
     constructor(message: string, status: number) {
         super(message, { status, headers: { "Content-Type": "text/html" } });
     }
-
-    static async throw(message: string | null, stack: any, status: number) {
-
+    static throw(message: string | null, stack: any, status: number) {
         let body;
         let trace;
         switch (status) {
             case 500: {
-                trace = hljs.highlight(stack, { language: 'php' }).value;
                 body = `
                 <body>
                 <div class="error-container">
@@ -21,12 +16,15 @@ export class BunziiError extends Response {
                     <div class="error-description">${message}</div>
                     <div class="error-action">
                         <a href="#" id="show-stack-trace">Show Stack Trace</a>
-                        <div class="stack-trace" id="stack-trace">${trace}</div>
+                        <div class="stack-trace" id="stack-trace"></div>
                     </div>
                 </div>
                 <script>
                     const showStackTraceLink = document.getElementById("show-stack-trace");
                     const stackTraceCode = document.getElementById("stack-trace");
+
+                    stackTraceCode.innerHTML = hljs.highlight(${trace}, { language: 'php' }).value;
+
                     showStackTraceLink.addEventListener("click", function() {
                         if (stackTraceCode.style.display === "block") {
                             stackTraceCode.style.display = "none";
@@ -64,6 +62,7 @@ export class BunziiError extends Response {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
             <title>Bunzii</title>
             <style>
                 body {
